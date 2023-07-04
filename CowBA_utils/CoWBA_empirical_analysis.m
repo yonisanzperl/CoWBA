@@ -1,0 +1,98 @@
+function [output] = CoWBA_empirical_analysis(Cfg,TS);
+
+% Parameters of the data
+xs = TS(:);
+[NPARCELLS,a] = size(TS{1});
+NSUB = size(find(~cellfun(@isempty,xs)),1);   
+TR = Cfg.TR;                                  % Repetition Time (seconds)
+
+
+% labels = RSN;
+% 
+% LAMBDA = Cfg.iLambda:Cfg.stepsLam:Cfg.fLambda;
+% LAMBDA = flip(LAMBDA);
+% NLAMBDA = length(LAMBDA);
+
+% Bandpass filter settings
+fnq=1/(2*TR);                 % Nyquist frequency
+flp = Cfg.filt.lb;                  % lowpass frequency of filter (Hz)
+fhi = Cfg.filt.ub;                   % highpass
+Wn=[flp/fnq fhi/fnq];         % butterworth bandpass non-dimensional frequency
+k=2;                          % 2nd order butterworth filter
+[bfilt,afilt]=butter(k,Wn);   % construct the filter
+
+% 
+% TransferLambda_sub=zeros(NLAMBDA,NSUB);
+% Turbulence_sub=zeros(NLAMBDA,NSUB);
+% node_Turbulence_sub=zeros(NLAMBDA,NSUB,NPARCELLS);
+% InformationCascade_sub=zeros(1,NSUB);
+% Transfer_sub=zeros(1,NSUB);
+% fcr=zeros(NLAMBDA,NSUB);
+% fclam=zeros(NLAMBDA,NPARCELLS,NPARCELLS);
+
+
+
+for sub = 1:NSUB
+    fprintf('Subject Number: %d/ %d \n', sub, NSUB);
+    ts = TS{sub};
+    if Cfg.Tmax > 0
+        Tmax = Cfg.Tmax;                                   % Timepoints
+    else
+        Tmax = size(ts{1},2);
+    end
+
+    %% Pre-processing
+    % just creating dummy for now
+    % ts = ts(1:100,1:200); % JUST FOR DEBUGGING SIMPLICITY
+
+    ts_processed = demean_detrend_ts(ts);
+    ts_filtered = filter_ts(ts_processed, bfilt, afilt);
+    [ts_phases ts_amplitude] = phases_ts(ts_filtered);
+    
+    %% Observables
+    % instantaneous Phase Coherence (iPC)
+    [iPC, iPC_tril] = phase_coherence_ts(ts_phases);
+
+    % Metastability and Synchrony
+    [sync(sub), meta(sub) GC_proxy(sub,:)] = kuramoto_measures(ts_phases,ts_amplitude);
+    % LZ-complexity as described by SanzPerl (we compared with Mediano)
+    
+    
+     
+    [C_norm(sub,:) C_mean(sub)] = LZc_measure(ts_processed);
+
+    % FCD
+  %  [FCD_iFC_triu(:,:,sub)] = iFC_dynamics(iPC);
+  
+  
+  % EDGE CENTRIC METASTABILITY
+  
+  [EdgeMeta(sub)] = edge_centric_measures(ts);
+            
+%     % iFC surrogate
+%     [mean_iFC_surr_all] = iFC_surrogate(BOLD(:,1:numTp), numAreas,numTp, bfilt, afilt, excTp);
+%     mean_iFC_surr_all(find(isnan(staticFC))) = eps; % again accounting for the missing timeseries
+%     % Integration and segregation
+%     [integ,seg] = int_and_seg(iPC, mean_iFC_surr_all,numAreas);
+%     % yeo networks
+%     [FN_mean] = Overlap_Yeo(staticFC,'AAL116',numAreas);
+
+
+%     % spatio-temporal Complexity
+%     numBin = 100;
+%     %C_FC = spatial_complexity(staticFC, numBin);
+%     %C_FCD_iFC_PCA1 = temporal_complexity(FCD_iFC_PCA1, numBin);
+%     %C_FCD_iFC_triu = temporal_complexity(FCD_iFC_triu, numBin);
+%%
+end
+
+
+output.meta = meta;
+output.sync = sync;
+%output.C_norm = C_norm;
+%output.FCD_iFC_triu = FCD_iFC_triu;
+output.EdgeMeta = EdgeMeta;
+output.GC_proxy = GC_proxy;
+output.C_norm = C_norm;
+output.C_mean = C_mean;
+%save (sprintf('CoWBA_measurements%d.mat',cond),'meta','sync','C_norm','FCD_iFC_triu');
