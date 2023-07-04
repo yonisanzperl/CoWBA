@@ -11,7 +11,9 @@ addpath(genpath([pwd '/CowBA_utils']));
 
 %% ESTO ES LO ÚNICO QUE SE TOCA (sino armar una copia)
 
-warning('off')
+warning('off');
+
+
 
 figure%('Position',140, 50);
 imshow(imread('diegoo.png'));
